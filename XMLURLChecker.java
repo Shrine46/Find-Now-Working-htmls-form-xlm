@@ -1,14 +1,12 @@
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.ParserConfigurationException;
-
 import java.io.InputStream;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Node;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -52,7 +50,7 @@ public class XMLURLChecker {
             try {
                 Document doc = loadXMLDoc(inputFileName);
                 NodeList nodeList = doc.getElementsByTagName("loc");
-                System.out.println("reading" + inputFileName);
+                System.out.println("Reading" + " " + inputFileName);
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName))) {
                     for (int i = 0; i < nodeList.getLength(); i++) {
                         Node node = nodeList.item(i);
