@@ -57,7 +57,16 @@ public class XMLURLChecker {
                         Element element = (Element) node;
                         
                         String urlText = element.getTextContent();
-                        urlCountErrorCount = checkURL(urlText, writer, urlCountErrorCount);
+                        
+                        // urlCountErrorCount = checkURL(urlText, writer, urlCountErrorCount);
+
+                        GetResponceCode getter = new GetResponceCode();
+                        getter.GetResponceCode(urlText, writer);
+
+                        getter.start();
+
+                        urlCountErrorCount[0]++;
+
                         System.out.print(urlCountErrorCount[0] + "\r");
                         
                         // System.out.println(urlText);
@@ -84,25 +93,26 @@ public class XMLURLChecker {
 }
 
 
-    private static int[] checkURL(String url, BufferedWriter writer, int[] urlCountErrorCount) throws IOException {
-        try {
-            URL obj = new URL(url);
-            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-            con.setRequestMethod("GET");
-            urlCountErrorCount[0]++;
+    // private static int[] checkURL(String url, BufferedWriter writer, int[] urlCountErrorCount) throws IOException {
+    //     try {
+    //         URL obj = new URL(url);
+    //         HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+    //         con.setRequestMethod("GET");
+    //         urlCountErrorCount[0]++;
 
+    //         GetResponceCode getter = new GetResponceCode();
+
+    //         int responseCode = getter.obtainResponceCode(con);
             
-            int responseCode = con.getResponseCode();
-            
-            if (responseCode != 200) {
-                writer.write(url);
-                writer.newLine(); // Add a newline after each URL in the output file
-                urlCountErrorCount[1]++;
-                System.out.println(url);
-            }
-        } catch (Exception e) {
-            System.err.println("Error checking URL: " + e.getMessage());
-        }
-        return urlCountErrorCount;
-    }
+    //         if (responseCode != 200) {
+    //             writer.write(url);
+    //             writer.newLine(); // Add a newline after each URL in the output file
+    //             urlCountErrorCount[1]++;
+    //             System.out.println(url);
+    //         }
+    //     } catch (Exception e) {
+    //         System.err.println("Error checking URL: " + e.getMessage());
+    //     }
+    //     return urlCountErrorCount;
+    // }
 }
