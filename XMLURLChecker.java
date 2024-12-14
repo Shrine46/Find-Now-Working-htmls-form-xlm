@@ -11,6 +11,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import javax.swing.*;
 
 import java.util.concurrent.*;
 
@@ -18,8 +19,8 @@ public class XMLURLChecker {
 
     public static void main(String[] args) throws Exception {
         // Define a fixed thread pool with a bounded blocking queue
-        int maxThreads = 50; // Maximum number of threads
-        int queueCapacity = 100; // Maximum number of tasks waiting in the queue
+        int maxThreads = 100; // Maximum number of threads
+        int queueCapacity = 10000; // Maximum number of tasks waiting in the queue
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
             maxThreads, // Core pool size
@@ -29,11 +30,21 @@ public class XMLURLChecker {
             new ThreadPoolExecutor.CallerRunsPolicy() // Handle rejected tasks
         );
 
+        JFrame frame = new JFrame();
+		frame.setSize(800,800);
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setLocationRelativeTo(null);
+		frame.add(new Display());
+		frame.setVisible(true);
+
+
         Document mainMap = loadXMLDoc("https://soldout.com/sitemap.xml");
         NodeList inputs = mainMap.getElementsByTagName("loc");
         NodeList dates = mainMap.getElementsByTagName("lastmod");
         String outputFileName = "urls.csv";
 
+        int urlCount = 0;
+        
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName))) {
             for (int j = 0; j < inputs.getLength(); j++) {
                 Node dateNode = dates.item(j);
@@ -50,6 +61,8 @@ public class XMLURLChecker {
                         Node node = nodeList.item(i);
                         String urlText = node.getTextContent();
 
+                        urlCount++;
+                        
                         // Submit tasks to the executor
                         executor.submit(new GetResponseCode(urlText, writer, date, inputFileName));
                     }
@@ -59,6 +72,7 @@ public class XMLURLChecker {
                 }
             }
         }
+        System.out.println(urlCount);
 
         // Shut down the executor and wait for tasks to finish
         executor.shutdown();
@@ -70,10 +84,15 @@ public class XMLURLChecker {
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         con.setRequestProperty("User-Agent", "Mozilla/5.0");
+        con.setConnectTimeout(10000); // Set timeout
+        con.setReadTimeout(10000);
         try (InputStream inputStream = con.getInputStream()) {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             return builder.parse(inputStream);
+        } finally {
+            con.disconnect(); // Close the connection
         }
     }
+    
 }

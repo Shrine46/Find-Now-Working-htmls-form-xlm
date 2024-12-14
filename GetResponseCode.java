@@ -25,27 +25,48 @@ public class GetResponseCode implements Runnable {
 
     @Override
     public void run() {
+        HttpURLConnection con = null;
         try {
             URL obj = new URL(url);
-            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
+            con = (HttpURLConnection) obj.openConnection();
             con.setRequestMethod("GET");
+            con.setRequestProperty("Connection", "keep-alive");
+            con.setConnectTimeout(10000); // Timeout for connection
+            con.setReadTimeout(10000);    // Timeout for reading
 
             int responseCode = con.getResponseCode();
 
-            if (true) {
-                // wants sitemap name, last mod, url, error code
-                synchronized (writer) {
+            synchronized (writer) {
+                writer.write(
+                    escapeCsvField(siteMap) + "," +
+                    escapeCsvField(date) + "," +
+                    escapeCsvField(url) + "," +
+                    responseCode
+                );
+                writer.newLine();
+            }
+            // Optional delay to throttle requests
+            Thread.sleep(100);
+
+        } catch (IOException | InterruptedException e) {
+            System.err.println("Error checking URL (" + url + "): " + e.getMessage());
+            synchronized (writer) {
+                try {
                     writer.write(
                         escapeCsvField(siteMap) + "," +
                         escapeCsvField(date) + "," +
                         escapeCsvField(url) + "," +
-                        responseCode
+                        0 + "," +
+                        e.getMessage()
                     );
-                    writer.newLine(); // Add a newline after each URL in the output file
-                }
+                    writer.newLine();
+                } catch (IOException e1) {}
             }
-        } catch (IOException e) {
-            System.err.println("Error checking URL: " + e.getMessage());
+        } finally {
+            if (con != null) {
+                con.disconnect(); // Ensure the connection is closed
+            }
         }
     }
+
 }
