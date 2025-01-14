@@ -19,7 +19,7 @@ public class XMLURLChecker {
 
     public static void main(String[] args) throws Exception {
         // Define a fixed thread pool with a bounded blocking queue
-        int maxThreads = 100; // Maximum number of threads
+        int maxThreads = 50; // Maximum number of threads
         int queueCapacity = 10000; // Maximum number of tasks waiting in the queue
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
@@ -30,12 +30,12 @@ public class XMLURLChecker {
             new ThreadPoolExecutor.CallerRunsPolicy() // Handle rejected tasks
         );
 
-        JFrame frame = new JFrame();
-		frame.setSize(800,800);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.setLocationRelativeTo(null);
-		frame.add(new Display());
-		frame.setVisible(true);
+        // JFrame frame = new JFrame();
+		// frame.setSize(800,800);
+		// frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		// frame.setLocationRelativeTo(null);
+		// frame.add(new Display());
+		// frame.setVisible(true);
 
 
         Document mainMap = loadXMLDoc("https://soldout.com/sitemap.xml");

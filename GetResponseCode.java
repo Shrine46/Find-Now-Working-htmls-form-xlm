@@ -14,6 +14,7 @@ public class GetResponseCode implements Runnable {
         this.writer = writer;
         this.date = date;
         this.siteMap = siteMap;
+        int errors = 0;
     }
 
     private String escapeCsvField(String field) {
@@ -31,8 +32,8 @@ public class GetResponseCode implements Runnable {
             con = (HttpURLConnection) obj.openConnection();
             con.setRequestMethod("GET");
             con.setRequestProperty("Connection", "keep-alive");
-            con.setConnectTimeout(10000); // Timeout for connection
-            con.setReadTimeout(10000);    // Timeout for reading
+            con.setConnectTimeout(20000); // Timeout for connection
+            con.setReadTimeout(20000);    // Timeout for reading
 
             int responseCode = con.getResponseCode();
 
