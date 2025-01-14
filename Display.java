@@ -14,8 +14,8 @@ public class Display extends JPanel {
         super.paintComponent(g);
         setBackground(Color.GRAY);
         
-        LifeGraphics img = new LifeGraphics(0, 0, 800, 800);
-        //img.drawGrid(g, grid.getGrid());
+        // LifeGraphics img = new LifeGraphics(0, 0, 800, 800);
+        // img.drawGrid(g, grid.getGrid());
         
     }
 }
