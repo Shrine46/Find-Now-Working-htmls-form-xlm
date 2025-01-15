@@ -36,25 +36,65 @@ public class XMLURLChecker {
 		// frame.setLocationRelativeTo(null);
 		// frame.add(new Display());
 		// frame.setVisible(true);
+        String oneMapString = ""; // if you want to load only one map, if you don't keep as ""
 
+        if (!oneMapString.isEmpty()) {
+            Document oneMap = loadXMLDoc(oneMapString);
 
+            NodeList urls = oneMap.getElementsByTagName("loc");
+            String outputFileName = "urls.csv";
+
+            int urlCount = 0;
+            
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName))) {
+                for (int j = 0; j < urls.getLength(); j++) {
+
+                    Node urlNode = urls.item(j);
+                    String urlsFileName = urlNode.getTextContent(); // gets urls
+
+                    try {
+                        Document doc = loadXMLDoc(urlsFileName);
+                        NodeList nodeList = doc.getElementsByTagName("loc");
+
+                        for (int i = 0; i < nodeList.getLength(); i++) {
+                            Node node = nodeList.item(i);
+                            String urlText = node.getTextContent();
+
+                            urlCount++;
+                            
+                            // Submit tasks to the executor
+                            executor.submit(new GetResponseCode(urlText, writer, "No Date Avalible", urlsFileName));
+                        }
+
+                    } catch (ParserConfigurationException | SAXException | IOException e) {
+                        System.err.println("Error parsing XML or writing file: " + e.getMessage());
+                    }
+                }
+            }
+            System.out.println(urlCount);
+
+            // Shut down the executor and wait for tasks to finish
+            executor.shutdown();
+            executor.awaitTermination(10, TimeUnit.MINUTES);
+        }
+        else {
         Document mainMap = loadXMLDoc("https://soldout.com/sitemap.xml");
-        NodeList inputs = mainMap.getElementsByTagName("loc");
+        NodeList urls = mainMap.getElementsByTagName("loc");
         NodeList dates = mainMap.getElementsByTagName("lastmod");
         String outputFileName = "urls.csv";
 
         int urlCount = 0;
         
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName))) {
-            for (int j = 0; j < inputs.getLength(); j++) {
+            for (int j = 0; j < urls.getLength(); j++) {
                 Node dateNode = dates.item(j);
-                String date = dateNode.getTextContent();
+                String date = dateNode.getTextContent(); // gets dates
 
-                Node inputNode = inputs.item(j);
-                String inputFileName = inputNode.getTextContent();
+                Node urlNode = urls.item(j);
+                String urlsFileName = urlNode.getTextContent(); // gets urls
 
                 try {
-                    Document doc = loadXMLDoc(inputFileName);
+                    Document doc = loadXMLDoc(urlsFileName);
                     NodeList nodeList = doc.getElementsByTagName("loc");
 
                     for (int i = 0; i < nodeList.getLength(); i++) {
@@ -64,7 +104,7 @@ public class XMLURLChecker {
                         urlCount++;
                         
                         // Submit tasks to the executor
-                        executor.submit(new GetResponseCode(urlText, writer, date, inputFileName));
+                        executor.submit(new GetResponseCode(urlText, writer, date, urlsFileName));
                     }
 
                 } catch (ParserConfigurationException | SAXException | IOException e) {
@@ -78,7 +118,7 @@ public class XMLURLChecker {
         executor.shutdown();
         executor.awaitTermination(10, TimeUnit.MINUTES);
     }
-
+    }   
     private static Document loadXMLDoc(String fileName) throws Exception {
         URL url = new URL(fileName);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
@@ -93,6 +133,10 @@ public class XMLURLChecker {
         } finally {
             con.disconnect(); // Close the connection
         }
+    }
+
+    public static boolean variableExists(Object obj, Object target) {
+        return obj instanceof Object && obj.equals(target);
     }
     
 }
