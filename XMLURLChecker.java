@@ -12,131 +12,108 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import javax.swing.*;
-
 import java.util.concurrent.*;
+import java.util.Queue;
+import java.util.Scanner;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class XMLURLChecker {
 
+    private static final Queue<String> urlQueue = new ConcurrentLinkedQueue<>();
+    private static final AtomicInteger processedCount = new AtomicInteger(0);
+    private static int totalUrls = 0;
+    private static URLCheckerGUI gui;
+
     public static void main(String[] args) throws Exception {
-        // Define a fixed thread pool with a bounded blocking queue
-        int maxThreads = 50; // Maximum number of threads
-        int queueCapacity = 10000; // Maximum number of tasks waiting in the queue
+        int maxThreads = 50;
+        int queueCapacity = 10000;
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
-            maxThreads, // Core pool size
-            maxThreads, // Maximum pool size
-            0L, TimeUnit.MILLISECONDS, // Keep-alive time for extra threads
-            new ArrayBlockingQueue<>(queueCapacity), // Blocking queue with capacity
-            new ThreadPoolExecutor.CallerRunsPolicy() // Handle rejected tasks
+            maxThreads,
+            maxThreads,
+            0L, TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(queueCapacity),
+            new ThreadPoolExecutor.CallerRunsPolicy()
         );
 
-        // JFrame frame = new JFrame();
-		// frame.setSize(800,800);
-		// frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		// frame.setLocationRelativeTo(null);
-		// frame.add(new Display());
-		// frame.setVisible(true);
-        String oneMapString = ""; // if you want to load only one map, if you don't keep as ""
+        String oneMapString = "";
 
         if (!oneMapString.isEmpty()) {
-            Document oneMap = loadXMLDoc(oneMapString);
+            totalUrls = countUrls(oneMapString);
+        } else {
+            totalUrls = countUrls("https://soldout.com/sitemap.xml");
+        }
 
-            NodeList urls = oneMap.getElementsByTagName("loc");
-            String outputFileName = "urls.csv";
+        SwingUtilities.invokeLater(() -> {
+            gui = new URLCheckerGUI(totalUrls);
+            gui.setVisible(true);
+        });
 
-            int urlCount = 0;
-            
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName))) {
-                for (int j = 0; j < urls.getLength(); j++) {
-
-                    Node urlNode = urls.item(j);
-                    String urlsFileName = urlNode.getTextContent(); // gets urls
-
-                    try {
-                        Document doc = loadXMLDoc(urlsFileName);
-                        NodeList nodeList = doc.getElementsByTagName("loc");
-
-                        for (int i = 0; i < nodeList.getLength(); i++) {
-                            Node node = nodeList.item(i);
-                            String urlText = node.getTextContent();
-
-                            urlCount++;
-                            
-                            // Submit tasks to the executor
-                            executor.submit(new GetResponseCode(urlText, writer, "No Date Avalible", urlsFileName));
-                        }
-
-                    } catch (ParserConfigurationException | SAXException | IOException e) {
-                        System.err.println("Error parsing XML or writing file: " + e.getMessage());
-                    }
-                }
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter("urls.csv", true))) {
+            if (!oneMapString.isEmpty()) {
+                processXML(oneMapString, executor, "No Date Available", writer);
+            } else {
+                processXML("https://soldout.com/sitemap.xml", executor, null, writer);
             }
-            System.out.println(urlCount);
-
-            // Shut down the executor and wait for tasks to finish
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.MINUTES);
         }
-        else {
-        Document mainMap = loadXMLDoc("https://soldout.com/sitemap.xml");
-        NodeList urls = mainMap.getElementsByTagName("loc");
-        NodeList dates = mainMap.getElementsByTagName("lastmod");
-        String outputFileName = "urls.csv";
+    }
 
-        int urlCount = 0;
-        
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFileName))) {
-            for (int j = 0; j < urls.getLength(); j++) {
+    private static void processXML(String xmlUrl, ThreadPoolExecutor executor, String parentDate, BufferedWriter writer) throws Exception {
+        Document doc = loadXMLDoc(xmlUrl);
+        NodeList urls = doc.getElementsByTagName("loc");
+        NodeList dates = doc.getElementsByTagName("lastmod");
+
+        for (int j = 0; j < urls.getLength(); j++) {
+            String date = parentDate;
+            if (dates.getLength() > j) {
                 Node dateNode = dates.item(j);
-                String date = dateNode.getTextContent(); // gets dates
+                date = dateNode.getTextContent();
+            }
 
-                Node urlNode = urls.item(j);
-                String urlsFileName = urlNode.getTextContent(); // gets urls
+            Node urlNode = urls.item(j);
+            String urlsFileName = urlNode.getTextContent();
 
-                try {
-                    Document doc = loadXMLDoc(urlsFileName);
-                    NodeList nodeList = doc.getElementsByTagName("loc");
-
-                    for (int i = 0; i < nodeList.getLength(); i++) {
-                        Node node = nodeList.item(i);
-                        String urlText = node.getTextContent();
-
-                        urlCount++;
-                        
-                        // Submit tasks to the executor
-                        executor.submit(new GetResponseCode(urlText, writer, date, urlsFileName));
-                    }
-
-                } catch (ParserConfigurationException | SAXException | IOException e) {
-                    System.err.println("Error parsing XML or writing file: " + e.getMessage());
-                }
+            if (urlsFileName.endsWith(".xml")) {
+                processXML(urlsFileName, executor, date, writer);
+            } else {
+                executor.submit(new GetResponseCode(urlsFileName, writer, date, xmlUrl, gui, totalUrls));
             }
         }
-        System.out.println(urlCount);
-
-        // Shut down the executor and wait for tasks to finish
-        executor.shutdown();
-        executor.awaitTermination(10, TimeUnit.MINUTES);
     }
-    }   
+
     private static Document loadXMLDoc(String fileName) throws Exception {
         URL url = new URL(fileName);
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("GET");
         con.setRequestProperty("User-Agent", "Mozilla/5.0");
-        con.setConnectTimeout(10000); // Set timeout
+        con.setConnectTimeout(10000);
         con.setReadTimeout(10000);
         try (InputStream inputStream = con.getInputStream()) {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             DocumentBuilder builder = factory.newDocumentBuilder();
             return builder.parse(inputStream);
         } finally {
-            con.disconnect(); // Close the connection
+            con.disconnect();
         }
     }
 
-    public static boolean variableExists(Object obj, Object target) {
-        return obj instanceof Object && obj.equals(target);
+    private static int countUrls(String xmlUrl) throws Exception {
+        Document doc = loadXMLDoc(xmlUrl);
+        NodeList urls = doc.getElementsByTagName("loc");
+        int count = urls.getLength();
+
+        for (int j = 0; j < urls.getLength(); j++) {
+            Node urlNode = urls.item(j);
+            String urlsFileName = urlNode.getTextContent();
+
+            if (urlsFileName.endsWith(".xml")) {
+                count += countUrls(urlsFileName);
+            }
+        }
+
+        return count;
     }
-    
 }
