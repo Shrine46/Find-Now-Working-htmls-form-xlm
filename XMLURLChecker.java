@@ -17,6 +17,7 @@ import java.util.Queue;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.io.File;
 
 public class XMLURLChecker {
 
@@ -25,9 +26,17 @@ public class XMLURLChecker {
     private static int totalUrls = 0;
     private static URLCheckerGUI gui;
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            gui = new URLCheckerGUI();
+            gui.setVisible(true);
+        });
+    }
+
+    public static File startChecking(String sitemapUrl, URLCheckerGUI gui) throws Exception {
         int maxThreads = 50;
         int queueCapacity = 10000;
+        File resultFile = new File("urls.csv");
 
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
             maxThreads,
@@ -37,28 +46,16 @@ public class XMLURLChecker {
             new ThreadPoolExecutor.CallerRunsPolicy()
         );
 
-        String oneMapString = "";
+        totalUrls = countUrls(sitemapUrl);
+        gui.setTotalUrls(totalUrls);
 
-        if (!oneMapString.isEmpty()) {
-            totalUrls = countUrls(oneMapString);
-        } else {
-            totalUrls = countUrls("https://soldout.com/sitemap.xml");
-        }
-
-        SwingUtilities.invokeLater(() -> {
-            gui = new URLCheckerGUI(totalUrls);
-            gui.setVisible(true);
-        });
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter("urls.csv", true))) {
-            if (!oneMapString.isEmpty()) {
-                processXML(oneMapString, executor, "No Date Available", writer);
-            } else {
-                processXML("https://soldout.com/sitemap.xml", executor, null, writer);
-            }
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(resultFile, true))) {
+            processXML(sitemapUrl, executor, null, writer);
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.MINUTES);
         }
+
+        return resultFile;
     }
 
     private static void processXML(String xmlUrl, ThreadPoolExecutor executor, String parentDate, BufferedWriter writer) throws Exception {
